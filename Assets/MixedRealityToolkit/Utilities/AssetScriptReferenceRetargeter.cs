@@ -14,6 +14,69 @@ using Object = UnityEngine.Object;
 
 namespace Microsoft.MixedReality.Toolkit.Build.Editor
 {
+    internal class ScriptReferenceRetargettingSettings : ScriptableObject
+    {
+        public const string scriptReferenceRetargetterSettingsPath = "Assets/ScriptReferenceRetargetter";
+        public const string scriptReferenceRetargetterSettingsFileName = "ScriptReferenceRetargetterSettings.asset";
+
+        [SerializeField]
+        private int m_Number;
+
+        [SerializeField]
+        private string m_SomeString;
+
+        internal static ScriptReferenceRetargettingSettings GetOrCreateSettings()
+        {
+            var settings = AssetDatabase.LoadAssetAtPath<ScriptReferenceRetargettingSettings>(scriptReferenceRetargetterSettingsPath);
+            if (settings == null)
+            {
+                settings = CreateInstance<ScriptReferenceRetargettingSettings>();
+                settings.m_Number = 42;
+                settings.m_SomeString = "The answer to the universe";
+
+                DirectoryInfo directoryInfo = new DirectoryInfo(scriptReferenceRetargetterSettingsPath);
+                if (!directoryInfo.Exists)
+                {
+                    Directory.CreateDirectory(scriptReferenceRetargetterSettingsPath);
+                }
+
+                AssetDatabase.CreateAsset(settings, Path.Combine(scriptReferenceRetargetterSettingsPath, scriptReferenceRetargetterSettingsFileName));
+                AssetDatabase.SaveAssets();
+            }
+            return settings;
+        }
+
+        internal static SerializedObject GetSerializedSettings()
+        {
+            return new SerializedObject(GetOrCreateSettings());
+        }
+    }
+
+    internal static class ScriptReferenceRetargettingSettingsIMGUIRegister
+    {
+        [SettingsProvider]
+        public static SettingsProvider CreateMyCustomSettingsProvider()
+        {
+            SettingsProvider provider = new SettingsProvider("Project/ScriptReferenceRetargetter", SettingsScope.Project)
+            {
+                // By default the last token of the path is used as display name if no label is provided.
+                label = "Script Reference Retargetter Settings",
+                // Create the SettingsProvider and initialize its drawing (IMGUI) function in place:
+                guiHandler = (searchContext) =>
+                {
+                    var settings = ScriptReferenceRetargettingSettings.GetSerializedSettings();
+                    EditorGUILayout.PropertyField(settings.FindProperty("m_Number"), new GUIContent("My Number"));
+                    EditorGUILayout.PropertyField(settings.FindProperty("m_SomeString"), new GUIContent("My String"));
+                },
+
+                // Populate the search keywords to enable smart search filtering and label highlighting:
+                keywords = new HashSet<string>(new[] { "Number", "Some String" })
+            };
+
+            return provider;
+        }
+    }
+
     public static class AssetScriptReferenceRetargeter
     {
         private struct ClassInformation
@@ -28,8 +91,8 @@ namespace Microsoft.MixedReality.Toolkit.Build.Editor
 
         private static readonly Dictionary<string, string> sourceToOutputFolders = new Dictionary<string, string>
         {
-            {"Library/PlayerDataCache/WindowsStoreApps", "UAPPlayer" },
-            {"Library/PlayerDataCache/Win", "StandalonePlayer" },
+            {"Library/PlayerDataCache/WindowsStoreApps/Data/Managed", "UAPPlayer" },
+            {"Library/PlayerDataCache/Win/Data/Managed", "StandalonePlayer" },
         };
 
         private static readonly HashSet<string> ExcludedYamlAssetExtensions = new HashSet<string> { ".jpg", ".csv", ".meta", ".pfx", ".txt", ".nuspec", ".asmdef", ".yml", ".cs", ".md", ".json", ".ttf", ".png", ".shader", ".wav", ".bin", ".gltf", ".glb", ".fbx", ".pdf", ".cginc" };
@@ -316,7 +379,9 @@ namespace Microsoft.MixedReality.Toolkit.Build.Editor
                         }
 
                         File.Copy(Path.Combine(tmpDirPath, $"{dll.name}.dll"), Path.Combine(outputDirectory, $"{dll.name}.dll"));
+                        File.Copy(Path.Combine(tmpDirPath, $"{dll.name}.pdb"), Path.Combine(outputDirectory, $"{dll.name}.pdb"));
                         File.Copy(Path.Combine(tmpDirPath, $"{dll.name}.dll.meta"), Path.Combine(outputDirectory, $"{dll.name}.dll.meta"));
+                        File.Copy(Path.Combine(tmpDirPath, $"{dll.name}.pdb.meta"), Path.Combine(outputDirectory, $"{dll.name}.pdb.meta"));
 
                         Object[] assets = AssetDatabase.LoadAllAssetsAtPath(Path.Combine("Assets", temporaryDirectoryName, $"{dll.name}.dll"));
 
@@ -358,7 +423,8 @@ namespace Microsoft.MixedReality.Toolkit.Build.Editor
         {
             foreach (KeyValuePair<string, string> sourceToOutputPair in sourceToOutputFolders)
             {
-                DirectoryInfo directory = new DirectoryInfo(Application.dataPath.Replace("Assets", sourceToOutputPair.Key));
+                string sourceDirectory = Application.dataPath.Replace("Assets", sourceToOutputPair.Key);
+                DirectoryInfo directory = new DirectoryInfo(sourceDirectory);
                 if (!directory.Exists)
                 {
                     throw new InvalidDataException($"The required platform intermediary build directory {sourceToOutputPair.Key} does not exist. Was the build succesful?");
@@ -371,10 +437,11 @@ namespace Microsoft.MixedReality.Toolkit.Build.Editor
                 }
                 Directory.CreateDirectory(pluginPath);
 
-                FileInfo[] dlls = directory.GetFiles("Microsoft.MixedReality.Toolkit*.dll", SearchOption.AllDirectories);
-                foreach (FileInfo dll in dlls)
+                FileInfo[] dlls = directory.GetFiles("Microsoft.MixedReality.Toolkit*.dll", SearchOption.TopDirectoryOnly);
+                FileInfo[] pdbs = directory.GetFiles("Microsoft.MixedReality.Toolkit*.pdb", SearchOption.TopDirectoryOnly);
+                foreach (FileInfo file in dlls.Union(pdbs))
                 {
-                    File.Copy(dll.FullName, Path.Combine(pluginPath, dll.Name), true);
+                    File.Copy(file.FullName, Path.Combine(pluginPath, file.Name), true);
                 }
             }
         }
@@ -436,20 +503,29 @@ namespace Microsoft.MixedReality.Toolkit.Build.Editor
                     string metaFilePath = string.Empty;
                     foreach (FileInfo file in files)
                     {
-                        //Editor is guid + 1; which has done when we processed Editor DLLs
+                        //Editor is guid + 1; which has been done when we processed Editor DLLs
                         //Standalone is guid + 2
-                        //UAP is guid + 3
+                        //Standalone.pdb is guid + 3
+                        //UAP is guid + 4
+                        //UAP.pdb is guid + 5
                         dllGuid = dllGuids[file.Name];
                         dllGuid = CycleGuidForward(dllGuid);
                         if (isUAP)
                         {
-                            dllGuid = CycleGuidForward(dllGuid);
+                            dllGuid = CycleGuidForward(CycleGuidForward(dllGuid));
                         }
 
                         if (dllGuids.ContainsKey(file.Name))
                         {
                             metaFilePath = $"{file.FullName}.meta";
                             metaFileContent[1] = $"guid: {dllGuid}";
+                            if (File.Exists(metaFilePath))
+                            {
+                                File.Delete(metaFilePath);
+                            }
+                            File.WriteAllLines(metaFilePath, metaFileContent);
+                            metaFilePath = metaFilePath.Replace(".dll", ".pdb");
+                            metaFileContent[1] = $"guid: {CycleGuidForward(dllGuid)}";
                             if (File.Exists(metaFilePath))
                             {
                                 File.Delete(metaFilePath);
