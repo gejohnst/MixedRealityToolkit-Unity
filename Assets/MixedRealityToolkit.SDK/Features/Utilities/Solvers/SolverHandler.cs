@@ -176,16 +176,61 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         {
             if (UpdateSolvers)
             {
+                GoalPosition = transform.position;
+                GoalRotation = transform.rotation;
+                GoalScale = transform.localScale;
+
                 for (int i = 0; i < solvers.Count; ++i)
                 {
                     Solver solver = solvers[i];
 
-                    if (solver.enabled)
+                    if (solver != null && solver.enabled)
                     {
                         solver.SolverUpdateEntry();
                     }
                 }
+
+                UpdateTransformToGoal();
             }
+        }
+
+        /// <summary>
+        /// Updates all object orientations to the goal orientation for this solver, with smoothing accounted for (smoothing may be off)
+        /// </summary>
+        protected void UpdateTransformToGoal()
+        {
+            transform.position = smoothing ? SmoothTo(transform.position, GoalPosition, DeltaTime, moveLerpTime) : GoalPosition;
+            transform.rotation = smoothing ? SmoothTo(transform.rotation, GoalRotation, DeltaTime, rotateLerpTime) : GoalRotation;
+            transform.localScale = smoothing ? SmoothTo(transform.localScale, GoalScale, DeltaTime, scaleLerpTime) : GoalScale;
+        }
+
+        /// <summary>
+        /// Lerps Vector3 source to goal.
+        /// </summary>
+        /// <remarks>
+        /// Handles lerpTime of 0.
+        /// </remarks>
+        /// <param name="source"></param>
+        /// <param name="goal"></param>
+        /// <param name="deltaTime"></param>
+        /// <param name="lerpTime"></param>
+        /// <returns></returns>
+        public static Vector3 SmoothTo(Vector3 source, Vector3 goal, float deltaTime, float lerpTime)
+        {
+            return Vector3.Lerp(source, goal, lerpTime.Equals(0.0f) ? 1f : deltaTime / lerpTime);
+        }
+
+        /// <summary>
+        /// Slerps Quaternion source to goal, handles lerpTime of 0
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="goal"></param>
+        /// <param name="deltaTime"></param>
+        /// <param name="lerpTime"></param>
+        /// <returns></returns>
+        public static Quaternion SmoothTo(Quaternion source, Quaternion goal, float deltaTime, float lerpTime)
+        {
+            return Quaternion.Slerp(source, goal, lerpTime.Equals(0.0f) ? 1f : deltaTime / lerpTime);
         }
 
         protected void OnDestroy()
