@@ -11,6 +11,11 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
     public class Orbital : Solver
     {
         [SerializeField]
+        [Tooltip("Selecting this field will expose the orbital solver settings")]
+        protected bool showOrbitalAttributes = false;
+
+        [SerializeField]
+        [ConditionalHide(nameof(showOrbitalAttributes), true)]
         [Tooltip("The desired orientation of this object. Default sets the object to face the TrackedObject/TargetTransform. CameraFacing sets the object to always face the user.")]
         private SolverOrientationType orientationType = SolverOrientationType.FollowTrackedObject;
 
@@ -59,6 +64,7 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         }
 
         [SerializeField]
+        [ConditionalHide(nameof(showOrbitalAttributes), true)]
         [Tooltip("Lock the rotation to a specified number of steps around the tracked object.")]
         private bool useAngleSteppingForWorldOffset = false;
 
@@ -72,20 +78,20 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         }
 
         [Range(2, 24)]
+        [ConditionalHide(nameof(showOrbitalAttributes), true)]
         [SerializeField]
         [Tooltip("The division of steps this object can tether to. Higher the number, the more snapple steps.")]
         private int tetherAngleSteps = 6;
-
-        /// <summary>
-        /// The division of steps this object can tether to. Higher the number, the more snapple steps.
-        /// </summary>
-        public int TetherAngleSteps
+        
+        public void Reset()
         {
-            get { return tetherAngleSteps; }
-            set
-            {
-                tetherAngleSteps =  Mathf.Clamp(value, 2, 24);
-            }
+            this.showSolverBaseAttributes = false;
+        }
+
+        protected override void OnValidate()
+        {
+            base.OnValidate();
+            tetherAngleSteps = Mathf.Clamp(tetherAngleSteps, 2, 24);
         }
 
         public override void SolverUpdate()

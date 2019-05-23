@@ -14,30 +14,41 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
     public abstract class Solver : MonoBehaviour
     {
         [SerializeField]
+        [Tooltip("Selecting this field will expose the base solver settings")]
+        protected bool showSolverBaseAttributes = false;
+
+        [SerializeField]
+        [ConditionalHide(nameof(showSolverBaseAttributes), true)]
         [Tooltip("If true, the position and orientation will be calculated, but not applied, for other components to use")]
         private bool updateLinkedTransform = false;
 
         [SerializeField]
-        [Tooltip("Position lerp multiplier")]
+        [ConditionalHide(nameof(showSolverBaseAttributes), true)]
+        [Tooltip("If 0, the position will update immediately.  Otherwise, the higher this attribute the slower the position updates")]
         private float moveLerpTime = 0.1f;
 
         [SerializeField]
-        [Tooltip("Rotation lerp multiplier")]
+        [ConditionalHide(nameof(showSolverBaseAttributes), true)]
+        [Tooltip("If 0, the rotation will update immediately.  Otherwise, the higher this attribute the slower the rotation updates")]
         private float rotateLerpTime = 0.1f;
 
         [SerializeField]
-        [Tooltip("Scale lerp multiplier")]
+        [ConditionalHide(nameof(showSolverBaseAttributes), true)]
+        [Tooltip("If 0, the scale will update immediately.  Otherwise, the higher this attribute the slower the scale updates")]
         private float scaleLerpTime = 0;
 
         [SerializeField]
-        [Tooltip("If true, the Solver will respect the object's original scale values")]
+        [ConditionalHide(nameof(showSolverBaseAttributes), true)]
+        [Tooltip("If true, the Solver will respect the object's original scale values.  If false, the scale will be set to Vector3.one")]
         private bool maintainScale = true;
 
         [SerializeField]
+        [ConditionalHide(nameof(showSolverBaseAttributes), true)]
         [Tooltip("Working output is smoothed if true. Otherwise, snapped")]
         private bool smoothing = true;
 
         [SerializeField]
+        [ConditionalHide(nameof(showSolverBaseAttributes), true)]
         [Tooltip("If > 0, this solver will deactivate after this much time, even if the state is still active")]
         private float lifetime = 0;
 
