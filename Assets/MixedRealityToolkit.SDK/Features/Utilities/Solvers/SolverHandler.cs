@@ -189,19 +189,7 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
                         solver.SolverUpdateEntry();
                     }
                 }
-
-                UpdateTransformToGoal();
             }
-        }
-
-        /// <summary>
-        /// Updates all object orientations to the goal orientation for this solver, with smoothing accounted for (smoothing may be off)
-        /// </summary>
-        protected void UpdateTransformToGoal()
-        {
-            transform.position = smoothing ? SmoothTo(transform.position, GoalPosition, DeltaTime, moveLerpTime) : GoalPosition;
-            transform.rotation = smoothing ? SmoothTo(transform.rotation, GoalRotation, DeltaTime, rotateLerpTime) : GoalRotation;
-            transform.localScale = smoothing ? SmoothTo(transform.localScale, GoalScale, DeltaTime, scaleLerpTime) : GoalScale;
         }
 
         /// <summary>
