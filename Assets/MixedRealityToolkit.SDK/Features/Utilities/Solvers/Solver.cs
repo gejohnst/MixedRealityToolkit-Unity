@@ -217,6 +217,8 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
             }
 
             SolverUpdate();
+
+            UpdateWorkingToGoal();
         }
 
         /// <summary>
