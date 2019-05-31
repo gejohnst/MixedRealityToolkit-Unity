@@ -14,7 +14,7 @@ namespace Microsoft.MixedReality.Toolkit.Tests.InputSystem
         [Test]
         public void TestHeadGazeHandAndSpeechBehaviour()
         {
-            TestUtilities.InitializeMixedRealityToolkitScene(true);
+            TestUtilities.InitializeMixedRealityToolkitAndCreateScenes(true);
 
             // Note that in this section, the numFarPointersActive == 1 to simulate the far pointer
             // of the gaze pointer itself.
