@@ -1,6 +1,8 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using System.IO;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -11,7 +13,16 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
     /// </summary>
     public class Orbital : Solver
     {
+        public OrbitalAttributes OrbitalAttributes
+        {
+            get
+            {
+                return SolverAttributes as OrbitalAttributes;
+            }
+        }
+
         [SerializeField]
+        [HideInInspector]
         [Tooltip("The desired orientation of this object. Default sets the object to face the TrackedObject/TargetTransform. CameraFacing sets the object to always face the user.")]
         private SolverOrientationType orientationType = SolverOrientationType.FollowTrackedObject;
 
@@ -28,6 +39,7 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         }
 
         [SerializeField]
+        [HideInInspector]
         [Tooltip("XYZ offset for this object oriented with the TrackedObject/TargetTransform's forward. Mixing local and world offsets is not recommended. Local offsets are applied before world offsets.")]
         private Vector3 localOffset = new Vector3(0, -1, 1);
 
@@ -44,6 +56,24 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         }
 
         [SerializeField]
+        [HideInInspector]
+        [Tooltip("Yaw-Pitch-Roll offset for this object oriented with the TrackedObject/TargetTransform's forward. Mixing local and world offsets is not recommended. Local offsets are applied before world offsets.")]
+        private Vector3 localRotationOffset = Vector3.zero;
+
+        /// <summary>
+        /// XYZ offset for this object in relation to the TrackedObject/TargetTransform.
+        /// </summary>
+        /// <remarks>
+        /// Mixing local and world offsets is not recommended.
+        /// </remarks>
+        public Vector3 LocalRotationOffset
+        {
+            get { return localRotationOffset; }
+            set { localRotationOffset = value; }
+        }
+
+        [SerializeField]
+        [HideInInspector]
         [Tooltip("XYZ offset for this object in worldspace, best used with the YawOnly orientationType. Mixing local and world offsets is not recommended. Local offsets are applied before world offsets.")]
         private Vector3 worldOffset = Vector3.zero;
 
@@ -60,6 +90,7 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         }
 
         [SerializeField]
+        [HideInInspector]
         [FormerlySerializedAs(oldName: "useAngleSteppingForWorldOffset")]
         [Tooltip("Lock the rotation to a specified number of steps around the tracked object.")]
         private bool useAngleStepping = false;
@@ -74,6 +105,7 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         }
 
         [Range(2, 24)]
+        [HideInInspector]
         [SerializeField]
         [Tooltip("The division of steps this object can tether to. Higher the number, the more snapple steps.")]
         private int tetherAngleSteps = 6;
@@ -100,6 +132,7 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
             desiredPos = desiredPos + (SnapToTetherAngleSteps(yawOnlyRot) * WorldOffset);
 
             Quaternion desiredRot = CalculateDesiredRotation(desiredPos);
+            desiredRot = Quaternion.Euler(LocalRotationOffset) * desiredRot;
 
             GoalPosition = desiredPos;
             GoalRotation = desiredRot;
@@ -158,5 +191,92 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
 
             return desiredRot;
         }
+
+        public override void CopyValuesFromSolverAttributes()
+        {
+            base.CopyValuesFromSolverAttributes();
+            if (OrbitalAttributes)
+            {
+                orientationType = OrbitalAttributes.orientationType;
+                tetherAngleSteps = OrbitalAttributes.tetherAngleSteps;
+                useAngleStepping = OrbitalAttributes.useAngleStepping;
+                localOffset = OrbitalAttributes.localOffset;
+                localRotationOffset = OrbitalAttributes.localRotationOffset;
+                worldOffset = OrbitalAttributes.worldOffset;
+            }
+        }
+    }
+
+    [CanEditMultipleObjects]
+    [CustomEditor(typeof(Orbital), true)]
+    public class OrbitalEditor : SolverEditor
+    {
+        public override void OnInspectorGUI()
+        {
+            base.OnInspectorGUI();
+
+            Solver solver = (Solver)target;
+            SolverAttributes solverAttributes = solver.SolverAttributes;
+            OrbitalAttributes orbitalAttributes = solverAttributes as OrbitalAttributes;
+            if (orbitalAttributes)
+            {
+                solver.CopyValuesFromSolverAttributes();
+            }
+            else if (solverAttributes)
+            {
+                if (GUILayout.Button("Create orbital settings from current solver settings"))
+                {
+                    solverAttributes = CreateInstance<SolverAttributes>();
+                    SerializedObject serializedObject = new SerializedObject(solverAttributes);
+
+                    solverAttributes.updateLinkedTransform = solver.UpdateLinkedTransform;
+                    solverAttributes.moveLerpTime = solver.MoveLerpTime;
+                    solverAttributes.rotateLerpTime = solver.RotateLerpTime;
+                    solverAttributes.scaleLerpTime = solver.ScaleLerpTime;
+                    solverAttributes.maintainScale = solver.MaintainScale;
+                    solverAttributes.smoothing = solver.Smoothing;
+                    solverAttributes.lifetime = solver.Lifetime;
+
+                    if (!Directory.Exists("Assets/MixedRealityToolkit.Generated/CustomProfiles/Solver/"))
+                    {
+                        Directory.CreateDirectory("Assets/MixedRealityToolkit.Generated/CustomProfiles/Solver/");
+                    }
+
+                    string assetPathAndName = AssetDatabase.GenerateUniqueAssetPath($"Assets/MixedRealityToolkit.Generated/CustomProfiles/Solver/CustomSolverAttributes.asset");
+                    AssetDatabase.CreateAsset(solverAttributes, assetPathAndName);
+
+                    AssetDatabase.SaveAssets();
+                    AssetDatabase.Refresh();
+                    solver.SolverAttributes = solverAttributes;
+                }
+            }
+            else
+            {
+                //TODO: figure out what to do here
+                //CreateProfile(solver);
+            }
+        }
+
+        protected override SolverAttributes GenerateAttributes()
+        {
+            return CreateInstance<OrbitalAttributes>();   
+        }
+
+        protected override void CopyFields(SolverAttributes solverAttributes, Solver solver)
+        {
+            base.CopyFields(solverAttributes, solver);
+            Orbital orbital = solver as Orbital;
+            OrbitalAttributes orbitalAttributes = solverAttributes as OrbitalAttributes;
+            if (orbitalAttributes)
+            {
+                orbitalAttributes.orientationType = orbital.OrientationType;
+                orbitalAttributes.tetherAngleSteps = orbital.TetherAngleSteps;
+                orbitalAttributes.useAngleStepping = orbital.UseAngleStepping;
+                orbitalAttributes.localOffset = orbital.LocalOffset;
+                orbitalAttributes.localRotationOffset = orbital.LocalRotationOffset;
+                orbitalAttributes.worldOffset = orbital.WorldOffset;
+            }
+        }
     }
 }
+

@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 using System;
+using System.IO;
+using UnityEditor;
 using UnityEngine;
 
 namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
@@ -15,33 +17,170 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
     public abstract class Solver : MonoBehaviour
     {
         [SerializeField]
+        private SolverAttributes solverAttributes;
+
+        public SolverAttributes SolverAttributes
+        {
+            get
+            {
+                return solverAttributes;
+            }
+            set
+            {
+                solverAttributes = value;
+            }
+        }
+
+        [SerializeField]
+        [HideInInspector]
+        [ReadOnly]
         [Tooltip("If true, the position and orientation will be calculated, but not applied, for other components to use")]
         private bool updateLinkedTransform = false;
 
+        public bool UpdateLinkedTransform
+        {
+            get
+            {
+                if (solverAttributes)
+                {
+                    return solverAttributes.updateLinkedTransform;
+                }
+                else
+                {
+                    return updateLinkedTransform;
+                }
+            }
+        }
+
         [SerializeField]
+        [HideInInspector]
+        [ReadOnly]
         [Tooltip("If 0, the position will update immediately.  Otherwise, the greater this attribute the slower the position updates")]
         private float moveLerpTime = 0.1f;
 
+        public float MoveLerpTime
+        {
+            get
+            {
+                if (solverAttributes)
+                {
+                    return solverAttributes.moveLerpTime;
+                }
+                else
+                {
+                    return moveLerpTime;
+                }
+            }
+        }
+
         [SerializeField]
+        [HideInInspector]
+        [ReadOnly]
         [Tooltip("If 0, the rotation will update immediately.  Otherwise, the greater this attribute the slower the rotation updates")]
         private float rotateLerpTime = 0.1f;
 
+        public float RotateLerpTime
+        {
+            get
+            {
+                if (solverAttributes)
+                {
+                    return solverAttributes.rotateLerpTime;
+                }
+                else
+                {
+                    return rotateLerpTime;
+                }
+            }
+        }
+
         [SerializeField]
+        [HideInInspector]
+        [ReadOnly]
         [Tooltip("If 0, the scale will update immediately.  Otherwise, the greater this attribute the slower the scale updates")]
         private float scaleLerpTime = 0;
 
+        public float ScaleLerpTime
+        {
+            get
+            {
+                if (solverAttributes)
+                {
+                    return solverAttributes.scaleLerpTime;
+                }
+                else
+                {
+                    return scaleLerpTime;
+                }
+            }
+        }
+
         [SerializeField]
+        [HideInInspector]
+        [ReadOnly]
         [Tooltip("If true, the Solver will respect the object's original scale values")]
         private bool maintainScale = true;
+
+        public bool MaintainScale
+        {
+            get
+            {
+                if (solverAttributes)
+                {
+                    return solverAttributes.maintainScale;
+                }
+                else
+                {
+                    return maintainScale;
+                }
+            }
+        }
+
         [SerializeField]
+        [HideInInspector]
+        [ReadOnly]
         [Tooltip("If true, updates are smoothed to the target. Otherwise, they are snapped to the target")]
         public bool smoothing = true;
 
+        public bool Smoothing
+        {
+            get
+            {
+                if (solverAttributes)
+                {
+                    return solverAttributes.smoothing;
+                }
+                else
+                {
+                    return smoothing;
+                }
+            }
+        }
+
         [SerializeField]
+        [HideInInspector]
+        [ReadOnly]
         [Tooltip("If > 0, this solver will deactivate after this much time, even if the state is still active")]
         private float lifetime = 0;
 
+        public float Lifetime
+        {
+            get
+            {
+                if (solverAttributes)
+                {
+                    return solverAttributes.lifetime;
+                }
+                else
+                {
+                    return lifetime;
+                }
+            }
+        }
+
         private float currentLifetime;
+
+        
 
         /// <summary>
         /// The handler reference for this solver that's attached to this <see href="https://docs.unity3d.com/ScriptReference/GameObject.html">GameObject</see>
@@ -104,11 +243,11 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         {
             get
             {
-                return updateLinkedTransform ? GoalPosition : transform.position;
+                return UpdateLinkedTransform ? GoalPosition : transform.position;
             }
             protected set
             {
-                if (updateLinkedTransform)
+                if (UpdateLinkedTransform)
                 {
                     GoalPosition = value;
                 }
@@ -126,11 +265,11 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         {
             get
             {
-                return updateLinkedTransform ? GoalRotation : transform.rotation;
+                return UpdateLinkedTransform ? GoalRotation : transform.rotation;
             }
             protected set
             {
-                if (updateLinkedTransform)
+                if (UpdateLinkedTransform)
                 {
                     GoalRotation = value;
                 }
@@ -148,11 +287,11 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         {
             get
             {
-                return updateLinkedTransform ? GoalScale : transform.localScale;
+                return UpdateLinkedTransform ? GoalScale : transform.localScale;
             }
             protected set
             {
-                if (updateLinkedTransform)
+                if (UpdateLinkedTransform)
                 {
                     GoalScale = value;
                 }
@@ -171,17 +310,33 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
             {
                 SolverHandler = GetComponent<SolverHandler>();
             }
+            CopyValuesFromSolverAttributes();
+        }
+
+        public virtual void CopyValuesFromSolverAttributes()
+        {
+            if (solverAttributes)
+            {
+                updateLinkedTransform = solverAttributes.updateLinkedTransform;
+                moveLerpTime = solverAttributes.moveLerpTime;
+                rotateLerpTime = solverAttributes.rotateLerpTime;
+                scaleLerpTime = solverAttributes.scaleLerpTime;
+                maintainScale = solverAttributes.maintainScale;
+                smoothing = solverAttributes.smoothing;
+                lifetime = solverAttributes.lifetime;
+            }
         }
 
         protected virtual void Awake()
         {
-            if (updateLinkedTransform && SolverHandler == null)
+            if (UpdateLinkedTransform && SolverHandler == null)
             {
+                //TODO: make this work better to set the attributes if possible
                 Debug.LogError("No SolverHandler component found on " + name + " when UpdateLinkedTransform was set to true! Disabling UpdateLinkedTransform.");
                 updateLinkedTransform = false;
             }
 
-            GoalScale = maintainScale ? transform.localScale : Vector3.one;
+            GoalScale = MaintainScale ? transform.localScale : Vector3.one;
         }
 
         /// <summary>
@@ -307,15 +462,15 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         /// </summary>
         protected void UpdateTransformToGoal()
         {
-            if (smoothing)
+            if (Smoothing)
             {
                 Vector3 pos = transform.position;
                 Quaternion rot = transform.rotation;
                 Vector3 scale = transform.localScale;
 
-                pos = SmoothTo(pos, GoalPosition, SolverHandler.DeltaTime, moveLerpTime);
-                rot = SmoothTo(rot, GoalRotation, SolverHandler.DeltaTime, rotateLerpTime);
-                scale = SmoothTo(scale, GoalScale, SolverHandler.DeltaTime, scaleLerpTime);
+                pos = SmoothTo(pos, GoalPosition, SolverHandler.DeltaTime, MoveLerpTime);
+                rot = SmoothTo(rot, GoalRotation, SolverHandler.DeltaTime, RotateLerpTime);
+                scale = SmoothTo(scale, GoalScale, SolverHandler.DeltaTime, ScaleLerpTime);
 
                 transform.position = pos;
                 transform.rotation = rot;
@@ -344,7 +499,7 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         /// </summary>
         public void UpdateWorkingPositionToGoal()
         {
-            WorkingPosition = smoothing ? SmoothTo(WorkingPosition, GoalPosition, SolverHandler.DeltaTime, moveLerpTime) : GoalPosition;
+            WorkingPosition = Smoothing ? SmoothTo(WorkingPosition, GoalPosition, SolverHandler.DeltaTime, MoveLerpTime) : GoalPosition;
         }
 
         /// <summary>
@@ -352,7 +507,7 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         /// </summary>
         public void UpdateWorkingRotationToGoal()
         {
-            WorkingRotation = smoothing ? SmoothTo(WorkingRotation, GoalRotation, SolverHandler.DeltaTime, rotateLerpTime) : GoalRotation;
+            WorkingRotation = Smoothing ? SmoothTo(WorkingRotation, GoalRotation, SolverHandler.DeltaTime, RotateLerpTime) : GoalRotation;
         }
 
         /// <summary>
@@ -360,7 +515,66 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         /// </summary>
         public void UpdateWorkingScaleToGoal()
         {
-            WorkingScale = smoothing ? SmoothTo(WorkingScale, GoalScale, SolverHandler.DeltaTime, scaleLerpTime) : GoalScale;
+            WorkingScale = Smoothing ? SmoothTo(WorkingScale, GoalScale, SolverHandler.DeltaTime, ScaleLerpTime) : GoalScale;
+        }
+    }
+
+    [CanEditMultipleObjects]
+    [CustomEditor(typeof(Solver), true)]
+    public class SolverEditor : UnityEditor.Editor
+    {
+        public override void OnInspectorGUI()
+        {
+            Solver solver = (Solver)target;
+            if (!solver.SolverAttributes)
+            {
+                if (GUILayout.Button("Create profile from current settings"))
+                {
+                    CreateProfile(solver);
+                }
+            }
+            else
+            {
+                solver.CopyValuesFromSolverAttributes();
+            }
+
+            DrawDefaultInspector();
+        }
+
+        protected void CreateProfile(Solver solver)
+        {
+            SolverAttributes solverAttributes = GenerateAttributes();
+            SerializedObject serializedObject = new SerializedObject(solverAttributes);
+
+            CopyFields(solverAttributes, solver);
+
+            if (!Directory.Exists("Assets/MixedRealityToolkit.Generated/CustomProfiles/Solver/"))
+            {
+                Directory.CreateDirectory("Assets/MixedRealityToolkit.Generated/CustomProfiles/Solver/");
+            }
+
+            string assetPathAndName = AssetDatabase.GenerateUniqueAssetPath($"Assets/MixedRealityToolkit.Generated/CustomProfiles/Solver/CustomSolverAttributes.asset");
+            AssetDatabase.CreateAsset(solverAttributes, assetPathAndName);
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            solver.SolverAttributes = solverAttributes;
+        }
+
+        protected virtual SolverAttributes GenerateAttributes()
+        {
+            return CreateInstance<SolverAttributes>();
+        }
+
+        protected virtual void CopyFields(SolverAttributes solverAttributes, Solver solver)
+        {
+            solverAttributes.updateLinkedTransform = solver.UpdateLinkedTransform;
+            solverAttributes.moveLerpTime = solver.MoveLerpTime;
+            solverAttributes.rotateLerpTime = solver.RotateLerpTime;
+            solverAttributes.scaleLerpTime = solver.ScaleLerpTime;
+            solverAttributes.maintainScale = solver.MaintainScale;
+            solverAttributes.smoothing = solver.Smoothing;
+            solverAttributes.lifetime = solver.Lifetime;
         }
     }
 }
