@@ -14,21 +14,51 @@ namespace Microsoft.MixedReality.Toolkit.Utilities.Solvers
         [Tooltip("Friction to slow down the current velocity")]
         private float resistance = 0.99f;
 
+        public float Resistance
+        {
+            get { return resistance; }
+            set { resistance = value; }
+        }
+
         [SerializeField]
         [Tooltip("Apply more resistance when going faster- applied resistance is resistance * (velocity ^ resistanceVelocityPower)")]
         private float resistanceVelocityPower = 1.5f;
+
+        public float ResistanceVelocityPower
+        {
+            get { return resistanceVelocityPower; }
+            set { resistanceVelocityPower = value; }
+        }
 
         [SerializeField]
         [Tooltip("Accelerate to goal position at this rate")]
         private float accelerationRate = 10f;
 
+        public float AccelerationRate
+        {
+            get { return accelerationRate; }
+            set { accelerationRate = value; }
+        }
+
         [SerializeField]
         [Tooltip("Apply more acceleration if farther from target- applied acceleration is accelerationRate + springiness * distance")]
         private float springiness = 0;
 
+        public float Springiness
+        {
+            get { return springiness; }
+            set { springiness = value; }
+        }
+
         [SerializeField]
         [Tooltip("Instantly maintain a constant depth from the view point instead of simulating Z-velocity")]
         private bool snapZ = true;
+
+        public bool SnapZ
+        {
+            get { return snapZ; }
+            set { snapZ = value; }
+        }
 
         private Vector3 velocity;
 
